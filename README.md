@@ -1,12 +1,29 @@
 # PDF_VIEWER_M
 
-[⬇️ APK 바로 다운로드](https://github.com/Dmng0/Project/raw/refs/heads/main/releases/yeobaek-1.0.0.apk)
+[⬇️ APK 바로 다운로드](https://github.com/Dmng0/Project/raw/refs/heads/main/releases/yeobaek-1.0.1.apk)
+
+[Android Studio 서명용 프로젝트 다운로드](https://github.com/Dmng0/Project/raw/refs/heads/main/releases/PDF_VIEWER_M-1.0.1-AndroidStudio.zip)
+
+### Windows 11에서 터미널 없이 릴리스 서명하기
+
+1. 위 서명용 ZIP 전체를 압축 해제합니다. 이 패키지에는 이미 빌드한 웹 화면과 안드로이드 네이티브 의존성이 들어 있어 npm 설치가 필요하지 않습니다.
+2. Android Studio에서 **File → Open**을 누르고 압축을 푼 `PDF_VIEWER_M/android` 폴더를 엽니다. 부모 폴더를 열지 마세요.
+3. Gradle 동기화를 기다립니다. 의존성 다운로드에 인터넷이 필요합니다. SDK 35와 Gradle JDK 21을 사용합니다.
+4. **Build → Generate Signed App Bundle or APK → APK**를 선택합니다.
+5. **Create new**로 저장소 밖의 개인 폴더에 전용 서명 키를 만들고 안전하게 백업합니다. 키와 비밀번호를 GitHub나 채팅에 올리지 마세요.
+6. **release**를 선택해 완료합니다. 생성된 APK는 Android Studio의 완료 안내에서 찾을 수 있습니다.
+
+서명용 ZIP은 미서명 릴리스 빌드로 검증했습니다. 개인 키로 서명한 최종 APK와 실제 기기 설치 검증은 아직 완료하지 않았습니다. 상단 설치용 APK는 취약점을 수정한 **디버그 서명 버전**이며, 외부 설치 안내가 사라지는 것은 아닙니다.
+
+### 1.0.1 보안 수정
+
+PDF 엔진을 `pdfjs-dist 6.2.108`로 업데이트해 GHSA-hq66-cqwq-w95j 취약점을 수정했습니다. npm 보안 감사, 기존 기능 테스트, Android 빌드와 lint로 확인했습니다. 검사 결과는 실행 시점의 알려진 취약점에 대한 결과이며 Google의 안전 인증이 아닙니다.
 
 모바일용 로컬 PDF 뷰어 **여백**입니다. 안드로이드에서는 APK를 설치해 서버 없이 실행할 수 있으며, 웹 버전도 제공합니다. PDF는 서버로 업로드하지 않고 앱 또는 브라우저의 IndexedDB에 저장합니다. 읽기 설정은 localStorage에 저장하며 PDF 처리 라이브러리와 워커도 앱에서 제공합니다. 사용 중 외부 API, 계정, 클라우드 저장소가 필요하지 않습니다.
 
 ## 안드로이드 APK 설치 (터미널 불필요)
 
-`releases/yeobaek-1.0.0.apk`를 휴대폰에 다운로드하고 파일 앱에서 열어 설치하세요. 브라우저 또는 파일 앱에 ‘이 출처의 앱 설치 허용’이 필요할 수 있습니다. 설치 후 **여백** 아이콘을 누르고 **PDF 추가**로 휴대폰 파일을 선택하면 됩니다. 실행에는 PC, 개발 서버, 인터넷 연결이 필요하지 않습니다.
+`releases/yeobaek-1.0.1.apk`를 휴대폰에 다운로드하고 파일 앱에서 열어 설치하세요. 브라우저 또는 파일 앱에 ‘이 출처의 앱 설치 허용’이 필요할 수 있습니다. 설치 후 **여백** 아이콘을 누르고 **PDF 추가**로 휴대폰 파일을 선택하면 됩니다. 실행에는 PC, 개발 서버, 인터넷 연결이 필요하지 않습니다.
 
 Android 8.0 이상과 Android System WebView 109 이상이 필요합니다. WebView가 오래된 경우 앱 안내에 따라 Play 스토어에서 Android System WebView/Chrome을 업데이트하세요. PDF 엔진은 호환성용 빌드를 사용합니다. 상태바·내비게이션바 영역을 피하고 안드로이드 뒤로가기 버튼은 설정 창 닫기 → 책장으로 돌아가기 → 앱 종료 순서로 동작합니다.
 
@@ -27,7 +44,7 @@ npm run android:apk
 
 ## 웹 버전 개발 실행
 
-Node.js 20.19 이상 또는 22.12 이상이 필요합니다. 이 환경에서는 Node.js 24로 검증했습니다.
+Node.js 22.13 이상 또는 24 이상이 필요합니다. 이 환경에서는 Node.js 24로 검증했습니다.
 
 ```sh
 npm ci

@@ -6,3 +6,6 @@ test-results/
 # Local Android signing material
 *.jks
 *.keystore
+
+# Unsigned release build outputs (not installable)
+releases/*-release-unsigned.apk*
