@@ -1,0 +1,29 @@
+{
+  "name": "paper-shelf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.js",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && python3 scripts/build-apk.py"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.9",
+    "lucide-react": "^0.468.0",
+    "pdfjs-dist": "^5.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
+    "@playwright/test": "^1.56.0",
+    "pdf-lib": "^1.17.1",
+    "vite": "^7.0.0"
+  }
+}

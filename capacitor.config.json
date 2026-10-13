@@ -1,0 +1,14 @@
+{
+  "appId": "com.yeobaek.reader",
+  "appName": "여백",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "adjustMarginsForEdgeToEdge": "auto",
+    "minWebViewVersion": 109
+  },
+  "server": {
+    "androidScheme": "https",
+    "errorPath": "unsupported.html"
+  }
+}
