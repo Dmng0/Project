@@ -1,6 +1,6 @@
 # PDF_VIEWER_M
 
-[⬇️ APK 바로 다운로드](https://github.com/Dmng0/Project/raw/refs/heads/main/releases/yeobaek-1.0.1.apk)
+[⬇️ APK 바로 다운로드](https://github.com/Dmng0/Project/raw/refs/heads/main/releases/yeobaek-1.0.2.apk)
 
 [Android Studio 서명용 프로젝트 다운로드](https://github.com/Dmng0/Project/raw/refs/heads/main/releases/PDF_VIEWER_M-1.0.1-AndroidStudio.zip)
 
