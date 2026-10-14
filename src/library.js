@@ -54,9 +54,20 @@ export async function database(action, value) {
         ? s.getAll()
         : action === "put"
           ? s.put(value)
-          : s.delete(value);
+          : action === "patch"
+            ? s.get(value.id)
+            : s.delete(value);
     let result;
-    r.onsuccess = () => (result = r.result);
+    r.onsuccess = () => {
+      if (action === "patch") {
+        if (!r.result) {
+          result = null;
+          return;
+        }
+        result = { ...r.result, ...value.patch };
+        s.put(result);
+      } else result = r.result;
+    };
     tx.oncomplete = () => {
       db.close();
       resolve(result);
@@ -89,4 +100,10 @@ export const defaults = {
   indent: true,
   continuous: false,
   bars: true,
+  cropTop: 0,
+  cropBottom: 0,
 };
+
+export function scopedBooks(books, scope) {
+  return scope ? books.filter((b) => b.series === scope) : books;
+}

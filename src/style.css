@@ -1531,3 +1531,360 @@ a {
   height: 100%;
   object-fit: contain;
 }
+/* Mobile shelves and bounded book rows. */
+html,
+body,
+#root,
+.app {
+  max-width: 100%;
+  overflow-x: clip;
+}
+.library-main,
+.shelf-section,
+.book-card,
+.book-info,
+.continue-card {
+  min-width: 0;
+}
+.book-list .book-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 54px;
+  gap: 15px;
+  width: 100%;
+  max-width: 100%;
+}
+.book-list .cover {
+  width: 56px;
+}
+.book-list .book-info {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+.book-list .book-info h3,
+.book-list .book-info h3 button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  width: 100%;
+  line-height: 1.65;
+}
+.book-list .book-info p {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.book-list .book-actions {
+  width: 54px;
+  flex-wrap: nowrap;
+}
+.book-grid .book-info h3 {
+  white-space: normal;
+  line-height: 1.55;
+  min-height: 2.8em;
+}
+.book-grid .book-info h3 button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.55;
+}
+.reader-top h1 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.reader-tools .icon-btn {
+  width: 30px;
+}
+.reader-bottom {
+  height: 48px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.reader-bottom input {
+  width: 100%;
+}
+.reading-page {
+  min-height: 65vh;
+  padding-top: 16px;
+  padding-bottom: 24px;
+}
+.reading-scroll {
+  padding-bottom: 65px;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+.reader mark {
+  color: inherit;
+  background: #e9c36c55;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.annotated-paragraph {
+  border-left: 2px solid #c9a85a;
+  padding-left: 8px;
+}
+.text-pdf-link {
+  display: inline;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  color: #6c8460 !important;
+  vertical-align: baseline;
+}
+.prose a {
+  color: #6c8460;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.pdf-frame {
+  position: relative;
+  isolation: isolate;
+}
+.pdf-frame .pdf-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.pdf-frame .textLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  user-select: text;
+}
+.pdf-number-mask,
+.pdf-crop-mask {
+  position: absolute;
+  z-index: 6;
+  pointer-events: auto;
+  background: #fff;
+}
+.pdf-crop-mask {
+  left: 0;
+  width: 100%;
+}
+.pdf-link-area {
+  position: absolute;
+  z-index: 4;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.pdf-link-area:hover,
+.pdf-link-area:focus-visible {
+  background: #63795a22;
+  outline: 1px solid #63795a;
+}
+.resizable-overlay {
+  background: transparent;
+  backdrop-filter: none;
+}
+.resizable-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+  min-height: 28dvh;
+  overflow: hidden;
+  padding-top: 0;
+  border-top: 1px solid #8883;
+  box-shadow: 0 -8px 26px #0002;
+}
+.sheet-grip {
+  flex-shrink: 0;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  padding: 10px 0 7px;
+  text-align: center;
+}
+.sheet-grip .sheet-handle {
+  display: block;
+  margin: 0 auto 5px;
+}
+.grip-caption {
+  font-size: 9px;
+  opacity: 0.45;
+}
+.resizable-sheet > .dialog-header {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 5px;
+}
+.sheet-body .result-list {
+  max-height: none;
+  overflow: visible;
+}
+.outline-item {
+  display: block;
+  width: 100%;
+  padding: 12px 8px;
+  border-bottom: 1px solid #8882;
+  text-align: left;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.selection-note {
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  background: #63795a !important;
+  color: white !important;
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 4px 16px #0002;
+  white-space: nowrap;
+}
+.note-form label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.note-form textarea {
+  display: block;
+  width: 100%;
+  min-height: 68px;
+  border: 1px solid #8884;
+  background: #8881;
+  color: inherit;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 7px;
+  resize: vertical;
+  font: inherit;
+  font-size: 13px;
+}
+.note-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+.note-help {
+  font-size: 11px;
+  opacity: 0.6;
+  line-height: 1.8;
+}
+.saved-note {
+  border-bottom: 1px solid #8882;
+  padding: 15px 0;
+}
+.note-jump {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+.saved-note blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid #bbaa6c;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.saved-note p {
+  font-size: 12px !important;
+  color: var(--read-ink);
+  opacity: 0.8;
+}
+.saved-note small {
+  font-size: 10px;
+  opacity: 0.5;
+}
+.saved-note > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 11px;
+}
+.book-folder {
+  padding-bottom: 15px;
+}
+.book-folder h3 {
+  font-size: 13px;
+  margin: 10px 0;
+  border-bottom: 1px solid #8882;
+  padding: 8px 0;
+}
+.book-folder .other-book {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  text-align: left;
+  border-bottom: 1px solid #8881;
+}
+.book-folder strong {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.scope-note {
+  font-size: 11px;
+  opacity: 0.6;
+}
+.scroll-end-hint {
+  padding: 25px 20px;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.5;
+}
+@media (max-width: 760px) {
+  .book-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 28px;
+  }
+  .book-info h3 {
+    font-size: 11px;
+  }
+  .book-info p {
+    font-size: 9px;
+    line-height: 1.5;
+  }
+  .book-list .book-info h3 {
+    font-size: 12px;
+  }
+  .book-list .book-card {
+    gap: 12px;
+  }
+  .reader-top h1 {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .reader-tools .icon-btn {
+    width: 27px;
+  }
+  .reader-tools svg {
+    width: 17px;
+  }
+  .resizable-sheet.settings-sheet {
+    max-height: 90dvh;
+  }
+  .reader-bottom {
+    height: 48px;
+    padding-left: 22px;
+    padding-right: 22px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+.reading-page:last-of-type {
+  min-height: calc(100dvh - 90px);
+}

@@ -70,13 +70,13 @@ test("mobile library and reader persist and support series, themes, bookmarks an
   await expect(page.locator(".book-card")).toHaveCount(2);
   await page.getByRole("button", { name: "Alpha", exact: true }).click();
   await expect(page.locator(".prose")).toContainText("Chapter two");
-  await page.getByRole("button", { name: "다음 페이지", exact: true }).click();
+  await page.locator(".reading-scroll").click({ position: { x: 350, y: 350 } });
   await expect(page.locator(".prose")).toContainText("Another story");
   await page.getByRole("button", { name: "읽기 설정" }).click();
   await page.getByRole("button", { name: "스크롤", exact: true }).click();
   await page.getByRole("button", { name: "PDF 원본" }).click();
   await page.getByRole("button", { name: "패널 닫기" }).click();
-  await expect(page.locator("canvas")).toBeVisible();
+  await expect(page.locator(".pdf-canvas")).toBeVisible();
   await page.getByRole("button", { name: "책장으로 돌아가기" }).click();
   await page.getByRole("button", { name: "Beta renamed 관리" }).click();
   await page.getByRole("button", { name: "책 삭제" }).click();
@@ -140,7 +140,7 @@ test("narrow mobile supports swipe, scroll scrubbing and scan fallback", async (
     page.getByText("텍스트가 없는 페이지는 원본으로 표시합니다."),
   ).toBeVisible();
   await expect
-    .poll(() => page.locator("canvas").evaluate((c) => c.width))
+    .poll(() => page.locator(".pdf-canvas").evaluate((c) => c.width))
     .toBeGreaterThan(0);
   expect(
     await page.evaluate(

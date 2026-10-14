@@ -35,7 +35,8 @@ Windows 11:
 3. Wait for Gradle sync. Internet access is needed to download build dependencies.
 4. If asked, select installed Android SDK 35 and Gradle JDK 21 (or newer compatible JDK).
 5. Build > Generate Signed App Bundle or APK > APK.
-6. Create a PRIVATE release keystore outside the project and back it up securely.
+6. Choose your EXISTING release keystore to update the installed app.
+   Create a new private keystore only for a first installation; back it up securely.
 7. Select release and complete the wizard.
 
 Never upload the keystore or passwords to GitHub or chat.
