@@ -277,7 +277,7 @@ test("folder-scoped next book and scroll continuation; other books are grouped",
   await page.getByRole("button", { name: "스크롤", exact: true }).click();
   await page.getByRole("switch", { name: "연속 보기", exact: true }).click();
   await close(page);
-  await expect(page.locator(".reading-page")).toHaveCount(2);
+  await expect(page.locator(".reading-flow")).toHaveCount(1);
   // Loading/resuming at the end alone must not advance; user scrolling does.
   await page.getByLabel("페이지 이동").fill("2");
   await page
@@ -286,7 +286,7 @@ test("folder-scoped next book and scroll continuation; other books are grouped",
   await expect(page.locator(".reader-top h1")).toHaveText("A1");
   await page.locator(".reading-scroll").dispatchEvent("wheel", { deltaY: 150 });
   await expect(page.locator(".reader-top h1")).toHaveText("A2");
-  await expect(page.locator(".reading-page")).toHaveCount(2);
+  await expect(page.locator(".reading-flow")).toHaveCount(1);
   await page
     .locator(".reading-scroll")
     .evaluate((el) => (el.scrollTop = el.scrollHeight));

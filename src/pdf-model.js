@@ -67,6 +67,10 @@ export function pdfLines(items, annotations, height) {
     );
     parts.push({
       text: item.str + (item.hasEOL ? "" : " "),
+      x,
+      y,
+      width: item.width,
+      fontSize: Math.hypot(item.transform[2], item.transform[3]) || h,
       link: link ? { dest: link.dest, url: safeLink(link.url) } : null,
     });
     lastY = y;

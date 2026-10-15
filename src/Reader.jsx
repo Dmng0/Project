@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   ArrowLeft,
   Bookmark,
@@ -17,6 +17,8 @@ import {
 import { pdfjs, extractPage, destinationPage } from "./pdf";
 import { nextBook, scopedBooks, themes, orderedBooks } from "./library";
 import PdfPage from "./PdfPage";
+import FlowReader from "./FlowReader";
+import { buildFlow, flowSearch, pagedFlowNoteRanges } from "./flow-text";
 import { quotationRanges } from "./pdf-model";
 import BottomSheet from "./BottomSheet";
 import ReaderSettings from "./ReaderSettings";
@@ -56,11 +58,24 @@ export default function Reader({
     scrollIntent = useRef(0),
     lastScroll = useRef(0),
     switching = useRef(false),
-    ended = useRef(false);
+    ended = useRef(false),
+    navigationUntil = useRef(0);
   pageRef.current = page;
   const theme = themes.find((t) => t.id === s.theme) || themes[0],
     allowed = orderedBooks(scopedBooks(books, scope), sort, scope),
     notes = book.notes || [];
+  const flow = useMemo(() => buildFlow(pages), [pages]);
+  const continuousText = s.mode === "scroll" && s.view === "text";
+  const searchPages = useMemo(
+    () =>
+      continuousText
+        ? flowSearch(flow, search).map((r) => ({
+            num: r.num,
+            plain: r.excerpt,
+          }))
+        : pages,
+    [continuousText, flow, search, pages],
+  );
   useEffect(() => {
     let alive = true,
       pdf,
@@ -119,7 +134,13 @@ export default function Reader({
     close();
   };
   function advance() {
-    if (loading || !s.continuous || switching.current) return;
+    if (
+      loading ||
+      !s.continuous ||
+      switching.current ||
+      window.getSelection()?.toString().trim()
+    )
+      return;
     const next = nextBook(allowed, book.id, sort, scope);
     if (!next) {
       if (!ended.current) {
@@ -146,6 +167,7 @@ export default function Reader({
     setSelection(null);
     window.getSelection()?.removeAllRanges();
     scrollIntent.current = 0;
+    navigationUntil.current = performance.now() + 160;
     if (s.mode === "scroll")
       scroller.current
         ?.querySelector(`[data-page="${target}"]`)
@@ -168,7 +190,8 @@ export default function Reader({
     const root = scroller.current;
     let t;
     const updatePage = () => {
-      if (s.mode !== "scroll") return;
+      if (s.mode !== "scroll" || performance.now() < navigationUntil.current)
+        return;
       const boundary = root.getBoundingClientRect().top + 80;
       const articles = [...root.querySelectorAll("[data-page]")];
       const current = articles.find(
@@ -178,6 +201,7 @@ export default function Reader({
     };
     root.addEventListener("scroll", updatePage, { passive: true });
     t = setTimeout(() => {
+      navigationUntil.current = performance.now() + 160;
       if (s.mode === "scroll")
         root
           .querySelector(`[data-page="${pageRef.current}"]`)
@@ -214,15 +238,47 @@ export default function Reader({
         sel?.anchorNode?.nodeType === 1
           ? sel.anchorNode
           : sel?.anchorNode?.parentElement;
+      if (!quote || !sel.rangeCount) return setSelection(null);
+      const range = sel.getRangeAt(0),
+        startElement =
+          range.startContainer.nodeType === 1
+            ? range.startContainer
+            : range.startContainer.parentElement,
+        endElement =
+          range.endContainer.nodeType === 1
+            ? range.endContainer
+            : range.endContainer.parentElement;
+      const flowRoot = startElement?.closest(".flow-prose");
+      if (flowRoot && flowRoot === endElement?.closest(".flow-prose")) {
+        const first =
+            startElement.closest(".flow-source") ||
+            startElement.querySelector(".flow-source") ||
+            flowRoot.querySelector(".flow-source"),
+          last = endElement.closest(".flow-source") || first;
+        const before = document.createRange();
+        before.selectNodeContents(flowRoot);
+        before.setEnd(range.startContainer, range.startOffset);
+        const through = document.createRange();
+        through.selectNodeContents(flowRoot);
+        through.setEnd(range.endContainer, range.endOffset);
+        setSelection({
+          quote,
+          page: Number(first.dataset.page),
+          endPage: Number(last.dataset.page),
+          start: before.toString().length,
+          end: through.toString().length,
+          anchorView: "flow",
+          flowRun: Number(flowRoot.closest("[data-flow-run]").dataset.flowRun),
+        });
+        return;
+      }
       const article = anchor?.closest(".reading-page");
-      if (!quote || !article || !scroller.current?.contains(article)) {
+      if (!article || !scroller.current?.contains(article)) {
         setSelection(null);
         return;
       }
-      const range = sel.getRangeAt(0),
-        root =
-          article.querySelector(".prose") ||
-          article.querySelector(".textLayer");
+      const root =
+        article.querySelector(".prose") || article.querySelector(".textLayer");
       let start, end;
       if (
         root &&
@@ -280,6 +336,8 @@ export default function Reader({
             start: note?.start,
             end: note?.end,
             anchorView: note?.anchorView,
+            flowRun: note?.flowRun,
+            endPage: note?.endPage,
           },
     );
     setPanel("notes");
@@ -334,10 +392,13 @@ export default function Reader({
       .flat()
       .map((p) => p.text)
       .join("");
-    const ranges = quotationRanges(
-      fullText,
-      notes.filter((n) => n.page === data.num),
-    );
+    const ranges = [
+      ...quotationRanges(
+        fullText,
+        notes.filter((n) => n.anchorView !== "flow" && n.page === data.num),
+      ),
+      ...pagedFlowNoteRanges(flow, notes, data.num),
+    ].sort((a, b) => a.start - b.start);
     let offset = 0;
     return (
       <article className="reading-page" key={data.num} data-page={data.num}>
@@ -352,7 +413,9 @@ export default function Reader({
               doc={doc}
               data={data}
               onLink={follow}
-              notes={notes.filter((n) => n.page === data.num)}
+              notes={notes.filter(
+                (n) => n.page <= data.num && (n.endPage || n.page) >= data.num,
+              )}
               onNote={startNote}
               cropTop={s.cropTop}
               cropBottom={s.cropBottom}
@@ -489,7 +552,7 @@ export default function Reader({
         </div>
       </header>
       <main
-        className="reading-scroll"
+        className={`reading-scroll ${continuousText ? "continuous-scroll" : ""}`}
         ref={scroller}
         onClick={tap}
         onScroll={(e) => {
@@ -552,7 +615,20 @@ export default function Reader({
           </div>
         ) : (
           doc &&
-          (s.mode === "paged" ? content(pages[page - 1]) : pages.map(content))
+          (s.mode === "paged" ? (
+            content(pages[page - 1])
+          ) : continuousText ? (
+            <FlowReader
+              blocks={flow}
+              notes={notes}
+              settings={s}
+              highlighted={highlighted}
+              follow={follow}
+              renderScan={content}
+            />
+          ) : (
+            pages.map(content)
+          ))
         )}
         {!loading && s.mode === "scroll" && (
           <div className="scroll-end-hint">
@@ -634,7 +710,7 @@ export default function Reader({
               </div>
               <div className="result-list">
                 {search.trim() ? (
-                  pages
+                  searchPages
                     .filter((p) =>
                       p.plain.toLowerCase().includes(search.toLowerCase()),
                     )
@@ -666,7 +742,7 @@ export default function Reader({
                   <p>PDF 전체의 추출된 텍스트를 검색합니다.</p>
                 )}
                 {search.trim() &&
-                  !pages.some((p) =>
+                  !searchPages.some((p) =>
                     p.plain.toLowerCase().includes(search.toLowerCase()),
                   ) && <p>검색 결과가 없습니다. 스캔본은 검색할 수 없어요.</p>}
               </div>

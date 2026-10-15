@@ -2077,3 +2077,38 @@ body,
   height: 34px;
   width: 26px;
 }
+/* Reflow text into a single novel, with invisible source-page anchors. */
+.reading-flow {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 16px var(--read-margin) 24px;
+  min-height: 0;
+}
+.flow-run {
+  padding: 0;
+  margin: 0;
+}
+.flow-prose p {
+  margin: 0 0 0.65em;
+  white-space: normal;
+}
+.flow-prose .flow-heading {
+  font-weight: 600;
+  margin: 1.3em 0 0.8em;
+  text-indent: 0;
+}
+.flow-prose .flow-heading:first-child {
+  margin-top: 0;
+}
+.flow-source {
+  scroll-margin-top: 80px;
+}
+.reading-flow .reading-page,
+.reading-flow .reading-page:last-of-type {
+  min-height: 0;
+  padding: 12px 0;
+  margin: 0;
+}
+.continuous-scroll .scroll-end-hint {
+  padding-top: 12px;
+}
