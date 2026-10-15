@@ -2,6 +2,8 @@
 from pathlib import Path
 import hashlib
 import json
+import subprocess
+import sys
 import zipfile
 
 root = Path(__file__).resolve().parents[1]
@@ -45,3 +47,5 @@ Version: ''' + version + '\n')
 output.with_suffix('.zip.sha256').write_text(hashlib.sha256(output.read_bytes()).hexdigest() + '  ' + output.name + '\n')
 print(output)
 print('Archive entries:', len(paths) + 1)
+
+subprocess.run([sys.executable, str(root / 'scripts/update-downloads.py')], check=True)

@@ -7,6 +7,7 @@ on:
       - 'releases/*.apk'
       - 'releases/*-AndroidStudio.zip'
       - 'scripts/prepare-release.py'
+      - 'scripts/update-downloads.py'
       - '.github/workflows/publish-downloads.yml'
   workflow_dispatch:
 
@@ -48,3 +49,26 @@ jobs:
           fi
           gh release upload "$tag" "$RUNNER_TEMP/downloads/"*.apk "$RUNNER_TEMP/downloads/"*.zip "$RUNNER_TEMP/downloads/"*.sha256 --clobber
           gh release edit "$tag" --draft=false --latest --title "여백 $APP_VERSION" --notes-file "$RUNNER_TEMP/downloads/NOTES.md"
+      - name: Keep README links current after publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.assets.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git fetch origin refs/heads/main:refs/remotes/origin/main
+          git switch --force-create download-links origin/main
+          current_version=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
+          if [ "$current_version" != "$APP_VERSION" ]; then
+            echo "A newer app version is already on main; its publication will update the links."
+            exit 0
+          fi
+          python3 scripts/update-downloads.py
+          if ! git diff --quiet -- README.md; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add README.md
+            git commit -m "Update download links for $APP_VERSION"
+            git push origin HEAD:main
+          fi

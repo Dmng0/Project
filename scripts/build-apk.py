@@ -60,3 +60,7 @@ print('SHA-256:', digest)
 
 if args.release:
     print('This release APK is unsigned. Sign it with your private release key before installation.')
+
+updater = root / 'scripts/update-downloads.py'
+if not args.release and updater.is_file() and (root / 'README.md').is_file():
+    subprocess.run([os.sys.executable, str(updater)], check=True)
