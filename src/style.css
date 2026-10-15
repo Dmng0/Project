@@ -1888,3 +1888,192 @@ body,
 .reading-page:last-of-type {
   min-height: calc(100dvh - 90px);
 }
+.drag-handle {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.book-card.dragging,
+.folder-nav-row.dragging {
+  z-index: 30;
+  position: relative;
+  opacity: 0.85;
+  filter: drop-shadow(0 6px 12px #25351f33);
+}
+.book-card.dragging .cover {
+  transform: none;
+}
+.book-list .book-card {
+  grid-template-columns: 56px minmax(0, 1fr) 80px;
+}
+.book-list .book-actions {
+  width: 80px;
+}
+.shelf-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.folder-edit-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid #dce1d3;
+  background: #f1f3eb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+}
+.folder-nav-list {
+  width: 100%;
+  max-height: 32vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 1;
+}
+.folder-nav-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+.folder-nav-row .nav {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.folder-symbol {
+  font-size: 17px;
+}
+.folder-drag-handle {
+  width: 25px;
+  color: #9ba68e;
+  flex-shrink: 0;
+}
+.folder-remove-button {
+  display: flex;
+  border: 1px solid #cfd7c5;
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: #647858;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+.folder-editor h3 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+.folder-editor-help {
+  font-size: 11px !important;
+  line-height: 1.8 !important;
+}
+.folder-editor .search-field {
+  width: 100%;
+}
+.folder-selection-count {
+  margin: 12px 0 4px !important;
+  font-size: 11px !important;
+  color: #718467 !important;
+}
+.folder-picker label {
+  display: flex;
+  gap: 10px;
+}
+.folder-picker label > span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.folder-picker label small {
+  display: block;
+  margin: 3px 0 0;
+  color: #9ba68e;
+  font-size: 10px;
+}
+.folder-picker img {
+  width: 27px;
+  height: 37px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+.folder-editor {
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+}
+.folder-picker {
+  min-height: 0;
+  max-height: 40dvh;
+  overflow: auto;
+}
+.folder-editor > .primary {
+  flex-shrink: 0;
+}
+.folder-editor > .dialog-header {
+  flex-shrink: 0;
+}
+@media (max-width: 760px) {
+  .folder-nav-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+    max-height: 150px;
+  }
+  .folder-nav-row {
+    width: auto;
+    max-width: 170px;
+  }
+  .folder-nav-row .nav {
+    max-width: none !important;
+    gap: 6px;
+  }
+  .folder-drag-handle {
+    width: 24px;
+    margin-top: 10px;
+    height: 29px;
+  }
+  .shelf-header-actions {
+    gap: 7px;
+  }
+  .folder-edit-button {
+    padding: 9px 8px;
+    font-size: 10px;
+  }
+  .shelf-title h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .folder-editor {
+    padding: 22px;
+  }
+  .folder-picker {
+    max-height: 35dvh;
+  }
+  .book-actions .drag-handle {
+    width: 24px;
+  }
+  .book-list .book-card {
+    grid-template-columns: 48px minmax(0, 1fr) 76px;
+    gap: 10px;
+  }
+  .book-list .cover {
+    width: 48px;
+  }
+  .book-list .book-actions {
+    width: 76px;
+  }
+}
+
+.book-actions .drag-handle {
+  height: 34px;
+  width: 26px;
+}

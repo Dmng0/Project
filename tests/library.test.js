@@ -116,3 +116,78 @@ test("annotations match across line breaks and preserve an exact repeated select
     19,
   );
 });
+import {
+  reorderBookPatches,
+  folderMembershipPatches,
+  moveInList,
+} from "../src/library.js";
+const apply = (books, patches) =>
+  books.map((b) => ({ ...b, ...patches.find((p) => p.id === b.id)?.patch }));
+test("manual folder order is independent from global order and drives next-book navigation", () => {
+  const b = books.map((x) => ({ ...x, favorite: false, series: "A" }));
+  const changed = apply(b, reorderBookPatches(b, "b", "c", "uploaded", "A"));
+  assert.deepEqual(
+    orderedBooks(changed, "manual", "A").map((x) => x.id),
+    ["b", "c", "a"],
+  );
+  assert.equal(nextBook(changed, "b", "manual", "A").id, "c");
+  assert.deepEqual(
+    orderedBooks(changed, "uploaded").map((x) => x.id),
+    ["c", "a", "b"],
+  );
+  assert.ok(changed.every((x) => x.manualOrder === undefined));
+});
+test("manual reorder retains favorite pinning and rejects crossing the pin boundary", () => {
+  assert.equal(reorderBookPatches(books, "a", "c", "uploaded"), null);
+  const changed = apply(books, reorderBookPatches(books, "b", "a", "uploaded"));
+  assert.deepEqual(
+    orderedBooks(changed, "manual").map((x) => x.id),
+    ["c", "b", "a"],
+  );
+});
+test("folder edits preserve existing manual order, append additions and exclude without deleting metadata", () => {
+  const b = [
+    {
+      ...books[0],
+      series: "A",
+      seriesOrder: 1,
+      page: 3,
+      notes: [{ body: "saved" }],
+    },
+    { ...books[1], series: "B", seriesOrder: 8 },
+    { ...books[2], series: "A", seriesOrder: 0, favorite: false },
+  ];
+  const changed = apply(b, folderMembershipPatches(b, "A", ["a", "b"]));
+  assert.equal(changed[2].series, "");
+  assert.equal(changed[1].series, "A");
+  assert.equal(changed[0].page, 3);
+  assert.equal(changed[0].notes[0].body, "saved");
+  assert.equal(changed.length, 3);
+  assert.deepEqual(
+    orderedBooks(
+      changed.filter((x) => x.series === "A"),
+      "manual",
+      "A",
+    ).map((x) => x.id),
+    ["a", "b"],
+  );
+});
+test("excluding every book creates removal patches only for the selected folder", () => {
+  const b = books.map((x, i) => ({ ...x, series: i === 1 ? "B" : "A" }));
+  const patches = folderMembershipPatches(b, "A", []);
+  assert.deepEqual(
+    patches.map((x) => x.id),
+    ["c", "a"],
+  );
+  assert.ok(patches.every((x) => x.patch.series === ""));
+  assert.equal(
+    patches.some((x) => x.id === "b"),
+    false,
+  );
+});
+test("folder drag ordering does not mutate input and ignores missing targets", () => {
+  const names = ["A", "B", "C"];
+  assert.deepEqual(moveInList(names, "C", "A"), ["C", "A", "B"]);
+  assert.deepEqual(names, ["A", "B", "C"]);
+  assert.deepEqual(moveInList(names, "D", "A"), names);
+});

@@ -12,16 +12,24 @@ import {
   X,
   MoreHorizontal,
   FolderPlus,
-  Check,
   Trash2,
   Grid2X2,
   List,
-  Book,
   Loader2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { pdfjs } from "./pdf";
 import Reader from "./Reader";
-import { database, orderedBooks, defaults } from "./library";
+import FolderEditor from "./FolderEditor";
+import { SortableShelf, SortableFolders } from "./SortableLibrary";
+import {
+  database,
+  orderedBooks,
+  defaults,
+  moveInList,
+  reorderBookPatches,
+  folderMembershipPatches,
+} from "./library";
 import "./style.css";
 const IconButton = ({ label, children, ...props }) => (
   <button className="icon-btn" aria-label={label} title={label} {...props}>
@@ -41,7 +49,27 @@ function App() {
     [loaded, setLoaded] = useState(false),
     [active, setActive] = useState(null),
     [readingScope, setReadingScope] = useState(null),
-    [sort, setSort] = useState("uploaded"),
+    [sort, setSort] = useState(() => {
+      try {
+        const s = localStorage.getItem("yeobaek-sort");
+        return ["uploaded", "title", "manual"].includes(s) ? s : "uploaded";
+      } catch {
+        return "uploaded";
+      }
+    }),
+    [folderOrder, setFolderOrder] = useState(() => {
+      try {
+        const value = JSON.parse(
+          localStorage.getItem("yeobaek-folder-order") || "[]",
+        );
+        return Array.isArray(value)
+          ? value.filter((v) => typeof v === "string")
+          : [];
+      } catch {
+        return [];
+      }
+    }),
+    [saving, setSaving] = useState(false),
     [filter, setFilter] = useState("all"),
     [query, setQuery] = useState(""),
     [modal, setModal] = useState(null),
@@ -97,14 +125,85 @@ function App() {
       subscription.then((listener) => listener.remove());
     };
   }, [active]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("yeobaek-sort", sort);
+      localStorage.setItem("yeobaek-folder-order", JSON.stringify(folderOrder));
+    } catch {
+      setNotice("정렬 설정을 기기에 저장하지 못했습니다.");
+    }
+  }, [sort, folderOrder]);
+  const folderName = filter.startsWith("series:") ? filter.slice(7) : null;
+  async function applyBatch(changes) {
+    if (!changes.length) return true;
+    setSaving(true);
+    try {
+      const updated = await database("batch", changes),
+        byId = new Map(updated.map((b) => [b.id, b]));
+      booksRef.current = booksRef.current.map((b) => byId.get(b.id) || b);
+      setBooks((prev) => prev.map((b) => byId.get(b.id) || b));
+      return true;
+    } catch {
+      setNotice("변경 내용을 저장하지 못했습니다. 저장 공간을 확인해 주세요.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function reorder(active, over) {
+    const changes = reorderBookPatches(
+      booksRef.current,
+      active,
+      over,
+      sort,
+      folderName,
+    );
+    if (!changes) {
+      setNotice(
+        "즐겨찾기는 항상 위에 고정됩니다. 같은 구분 안에서 순서를 바꿔 주세요.",
+      );
+      return;
+    }
+    if (await applyBatch(changes)) {
+      setSort("manual");
+      setNotice("책 순서를 저장했습니다.");
+    }
+  }
+  function reorderFolders(active, over) {
+    setFolderOrder(moveInList(series, active, over));
+    setNotice("폴더 순서를 저장했습니다.");
+  }
+  async function saveFolder(name, ids) {
+    const ok = await applyBatch(
+      folderMembershipPatches(booksRef.current, name, ids),
+    );
+    if (ok) {
+      if (!ids.length && filter === `series:${name}`) setFilter("all");
+      setNotice("폴더 구성을 저장했습니다.");
+    }
+    return ok;
+  }
   async function update(id, patch) {
     const old = booksRef.current.find((b) => b.id === id);
     if (!old) return;
+    if (
+      "series" in patch &&
+      patch.series !== old.series &&
+      !("seriesOrder" in patch)
+    )
+      patch = { ...patch, seriesOrder: null };
     try {
       const next = await database("patch", { id, patch });
       if (!next) return false;
       booksRef.current = booksRef.current.map((x) => (x.id === id ? next : x));
       setBooks((b) => b.map((x) => (x.id === id ? next : x)));
+      if (
+        "series" in patch &&
+        old.series !== patch.series &&
+        filter === `series:${old.series}` &&
+        booksRef.current.every((b) => b.series !== old.series)
+      )
+        setFilter("all");
       return true;
     } catch {
       setNotice("저장 공간이 부족하거나 저장할 수 없습니다.");
@@ -113,6 +212,21 @@ function App() {
   }
   async function upload(files) {
     setBusy(true);
+    const targetFolder = folderName;
+    const lastSeriesOrder = Math.max(
+      -1,
+      ...booksRef.current
+        .filter((b) => b.series === targetFolder)
+        .map((b) =>
+          Number.isFinite(b.seriesOrder) ? b.seriesOrder : b.created,
+        ),
+    );
+    const lastManualOrder = Math.max(
+      -1,
+      ...booksRef.current.map((b) =>
+        Number.isFinite(b.manualOrder) ? b.manualOrder : b.created,
+      ),
+    );
     let count = 0;
     for (const file of files) {
       if (!/\.pdf$/i.test(file.name)) {
@@ -146,11 +260,14 @@ function App() {
           pages: doc.numPages,
           page: 1,
           favorite: false,
-          series: "",
+          series: targetFolder || "",
+          seriesOrder: targetFolder ? lastSeriesOrder + 1 + count : null,
+          manualOrder: lastManualOrder + 1 + count,
           bookmarks: [],
           created: Date.now() + count,
         };
         await database("put", b);
+        booksRef.current = [...booksRef.current, b];
         setBooks((prev) => [...prev, b]);
         count++;
       } catch (e) {
@@ -168,7 +285,7 @@ function App() {
     if (count) setNotice(`${count}권을 책장에 추가했습니다.`);
     if (input.current) input.current.value = "";
   }
-  const sorted = orderedBooks(books, sort);
+  const sorted = orderedBooks(books, sort, folderName);
   const visible = sorted.filter(
     (b) =>
       (filter === "all" ||
@@ -177,7 +294,11 @@ function App() {
         (filter.startsWith("series:") && b.series === filter.slice(7))) &&
       b.title.toLowerCase().includes(query.toLowerCase()),
   );
-  const series = [...new Set(books.map((b) => b.series).filter(Boolean))];
+  const foundSeries = [...new Set(books.map((b) => b.series).filter(Boolean))];
+  const series = [
+    ...folderOrder.filter((name) => foundSeries.includes(name)),
+    ...foundSeries.filter((name) => !folderOrder.includes(name)),
+  ];
   const reading = sorted
     .filter((b) => b.lastRead)
     .sort((a, b) => b.lastRead - a.lastRead)[0];
@@ -250,17 +371,14 @@ function App() {
                 <Plus size={16} />
               </IconButton>
             </div>
-            {series.map((s) => (
-              <button
-                key={s}
-                className={filter === `series:${s}` ? "nav active" : "nav"}
-                onClick={() => setFilter(`series:${s}`)}
-              >
-                <Book size={17} />
-                <span className="series-name">{s}</span>
-                <small>{books.filter((b) => b.series === s).length}</small>
-              </button>
-            ))}
+            <SortableFolders
+              names={series}
+              books={books}
+              filter={filter}
+              onOpen={(name) => setFilter(`series:${name}`)}
+              onMove={reorderFolders}
+              disabled={saving || busy}
+            />
             {!series.length && (
               <p className="sidebar-hint">
                 함께 읽을 책을
@@ -284,7 +402,8 @@ function App() {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
-              upload([...e.dataTransfer.files]);
+              if (e.dataTransfer.files.length)
+                upload([...e.dataTransfer.files]);
             }}
           >
             <header className="topbar">
@@ -359,18 +478,32 @@ function App() {
                         : filter.slice(7)}
                   <span>{visible.length}</span>
                 </h2>
-                <button
-                  className="primary"
-                  onClick={() => input.current.click()}
-                  disabled={busy}
-                >
-                  {busy ? (
-                    <Loader2 className="spin" size={16} />
-                  ) : (
-                    <Plus size={17} />
-                  )}{" "}
-                  {busy ? "책을 담는 중" : "PDF 추가"}
-                </button>
+                <div className="shelf-header-actions">
+                  {folderName && (
+                    <button
+                      className="folder-edit-button"
+                      onClick={() =>
+                        setModal({ type: "folder", name: folderName })
+                      }
+                      disabled={saving || busy}
+                    >
+                      <SlidersHorizontal size={15} />
+                      폴더 편집
+                    </button>
+                  )}
+                  <button
+                    className="primary"
+                    onClick={() => input.current.click()}
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <Loader2 className="spin" size={16} />
+                    ) : (
+                      <Plus size={17} />
+                    )}{" "}
+                    {busy ? "책을 담는 중" : "PDF 추가"}
+                  </button>
+                </div>
               </div>
               <div className="shelf-tools">
                 <div className="search-field">
@@ -390,6 +523,7 @@ function App() {
                   >
                     <option value="uploaded">업로드 순서</option>
                     <option value="title">제목 순서</option>
+                    <option value="manual">직접 정렬</option>
                   </select>
                   <div className="view-toggle">
                     <IconButton
@@ -443,9 +577,14 @@ function App() {
                   <small>PDF 파일을 이곳에 끌어다 놓아도 좋아요.</small>
                 </div>
               ) : (
-                <div className={list ? "book-list" : "book-grid"}>
-                  {visible.map((b, i) => (
-                    <article className="book-card" key={b.id}>
+                <SortableShelf
+                  books={visible}
+                  list={list}
+                  disabled={saving || busy}
+                  onMove={reorder}
+                >
+                  {(b, i, handle) => (
+                    <>
                       <button
                         className="cover"
                         style={{ "--cover": colors[i % colors.length] }}
@@ -485,6 +624,7 @@ function App() {
                         )}
                       </div>
                       <div className="book-actions">
+                        {handle}
                         <IconButton
                           label={b.favorite ? "즐겨찾기 해제" : "즐겨찾기 추가"}
                           onClick={() =>
@@ -511,9 +651,9 @@ function App() {
                           <MoreHorizontal size={18} />
                         </IconButton>
                       </div>
-                    </article>
-                  ))}
-                </div>
+                    </>
+                  )}
+                </SortableShelf>
               )}
             </section>
             <footer className="library-footer">
@@ -523,7 +663,15 @@ function App() {
           </main>
         </>
       )}
-      {modal && modal.type !== "delete" && (
+      {modal?.type === "folder" && (
+        <FolderEditor
+          name={modal.name}
+          books={orderedBooks(books, "uploaded")}
+          close={() => setModal(null)}
+          save={(ids) => saveFolder(modal.name, ids)}
+        />
+      )}
+      {modal && modal.type !== "delete" && modal.type !== "folder" && (
         <div className="overlay" onClick={() => setModal(null)}>
           <form
             className="dialog"
@@ -531,14 +679,22 @@ function App() {
             onSubmit={async (e) => {
               e.preventDefault();
               if (!modal.name.trim()) return;
+              if (
+                modal.type === "series" &&
+                series.includes(modal.name.trim())
+              ) {
+                setNotice(
+                  "같은 이름의 폴더가 있습니다. 해당 폴더의 폴더 편집을 이용해 주세요.",
+                );
+                return;
+              }
               if (modal.type === "edit")
                 await update(modal.id, {
                   title: modal.name.trim(),
                   series: modal.series.trim(),
                 });
-              else
-                for (const id of modal.ids)
-                  await update(id, { series: modal.name.trim() });
+              else if (!(await saveFolder(modal.name.trim(), modal.ids)))
+                return;
               setModal(null);
             }}
           >
@@ -578,6 +734,36 @@ function App() {
                     ))}
                   </datalist>
                 </label>
+                {books.find((b) => b.id === modal.id)?.series && (
+                  <button
+                    type="button"
+                    className="folder-remove-button"
+                    onClick={async () => {
+                      const original = books.find(
+                        (b) => b.id === modal.id,
+                      )?.series;
+                      if (
+                        await update(modal.id, {
+                          series: "",
+                          seriesOrder: null,
+                        })
+                      ) {
+                        if (
+                          filter === `series:${original}` &&
+                          books.filter((b) => b.series === original).length ===
+                            1
+                        )
+                          setFilter("all");
+                        setModal(null);
+                        setNotice(
+                          "폴더에서 제외했습니다. PDF는 책장에 남습니다.",
+                        );
+                      }
+                    }}
+                  >
+                    폴더에서 제외
+                  </button>
+                )}
                 <button
                   type="button"
                   className="delete"

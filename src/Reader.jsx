@@ -15,7 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { pdfjs, extractPage, destinationPage } from "./pdf";
-import { nextBook, scopedBooks, themes } from "./library";
+import { nextBook, scopedBooks, themes, orderedBooks } from "./library";
 import PdfPage from "./PdfPage";
 import { quotationRanges } from "./pdf-model";
 import BottomSheet from "./BottomSheet";
@@ -59,7 +59,7 @@ export default function Reader({
     ended = useRef(false);
   pageRef.current = page;
   const theme = themes.find((t) => t.id === s.theme) || themes[0],
-    allowed = scopedBooks(books, scope),
+    allowed = orderedBooks(scopedBooks(books, scope), sort, scope),
     notes = book.notes || [];
   useEffect(() => {
     let alive = true,
@@ -120,7 +120,7 @@ export default function Reader({
   };
   function advance() {
     if (loading || !s.continuous || switching.current) return;
-    const next = nextBook(allowed, book.id, sort);
+    const next = nextBook(allowed, book.id, sort, scope);
     if (!next) {
       if (!ended.current) {
         notify(

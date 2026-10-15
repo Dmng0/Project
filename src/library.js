@@ -1,15 +1,68 @@
-export function orderedBooks(books, sort = "uploaded") {
-  return [...books].sort(
-    (a, b) =>
-      Number(b.favorite) - Number(a.favorite) ||
-      (sort === "title"
-        ? a.title.localeCompare(b.title, "ko", { numeric: true })
-        : a.created - b.created),
-  );
+export function orderedBooks(books, sort = "uploaded", scope = null) {
+  const key = scope ? "seriesOrder" : "manualOrder";
+  const uploaded = (a, b) => a.created - b.created || a.id.localeCompare(b.id);
+  const rank = (book) =>
+    Number.isFinite(book[key]) ? book[key] : book.created;
+  return [...books].sort((a, b) => {
+    const pinned = Number(Boolean(b.favorite)) - Number(Boolean(a.favorite));
+    if (pinned) return pinned;
+    if (sort === "title")
+      return (
+        a.title.localeCompare(b.title, "ko", { numeric: true }) ||
+        uploaded(a, b)
+      );
+    if (sort === "manual") return rank(a) - rank(b) || uploaded(a, b);
+    return uploaded(a, b);
+  });
 }
-export function nextBook(books, id, sort) {
-  const list = orderedBooks(books, sort);
-  return list[list.findIndex((b) => b.id === id) + 1] || null;
+export function nextBook(books, id, sort, scope = null) {
+  const list = orderedBooks(books, sort, scope);
+  const index = list.findIndex((b) => b.id === id);
+  return index < 0 ? null : list[index + 1] || null;
+}
+export function moveInList(items, active, over) {
+  const from = items.indexOf(active),
+    to = items.indexOf(over);
+  if (from < 0 || to < 0) return items;
+  const next = [...items];
+  next.splice(to, 0, next.splice(from, 1)[0]);
+  return next;
+}
+export function reorderBookPatches(books, active, over, sort, scope = null) {
+  const list = orderedBooks(
+      scope ? books.filter((b) => b.series === scope) : books,
+      sort,
+      scope,
+    ),
+    a = list.find((b) => b.id === active),
+    b = list.find((b) => b.id === over);
+  if (!a || !b || Boolean(a.favorite) !== Boolean(b.favorite)) return null;
+  const ids = moveInList(
+      list.map((b) => b.id),
+      active,
+      over,
+    ),
+    key = scope ? "seriesOrder" : "manualOrder";
+  return ids.map((id, i) => ({ id, patch: { [key]: i } }));
+}
+export function folderMembershipPatches(books, name, ids) {
+  const selected = new Set(ids),
+    existing = orderedBooks(
+      books.filter((b) => b.series === name),
+      "manual",
+      name,
+    );
+  const retained = existing.filter((b) => selected.has(b.id)),
+    added = ids
+      .map((id) => books.find((b) => b.id === id))
+      .filter((b) => b && b.series !== name);
+  return [...retained, ...added]
+    .map((b, i) => ({ id: b.id, patch: { series: name, seriesOrder: i } }))
+    .concat(
+      existing
+        .filter((b) => !selected.has(b.id))
+        .map((b) => ({ id: b.id, patch: { series: "", seriesOrder: null } })),
+    );
 }
 export function pageText(items) {
   const lines = [];
@@ -49,25 +102,38 @@ export async function database(action, value) {
       action === "all" ? "readonly" : "readwrite",
     );
     const s = tx.objectStore("books");
-    const r =
-      action === "all"
-        ? s.getAll()
-        : action === "put"
-          ? s.put(value)
-          : action === "patch"
-            ? s.get(value.id)
-            : s.delete(value);
     let result;
-    r.onsuccess = () => {
-      if (action === "patch") {
-        if (!r.result) {
-          result = null;
-          return;
-        }
-        result = { ...r.result, ...value.patch };
-        s.put(result);
-      } else result = r.result;
-    };
+    if (action === "batch") {
+      result = [];
+      for (const change of value) {
+        const r = s.get(change.id);
+        r.onsuccess = () => {
+          if (!r.result) return;
+          const next = { ...r.result, ...change.patch };
+          s.put(next);
+          result.push(next);
+        };
+      }
+    } else {
+      const r =
+        action === "all"
+          ? s.getAll()
+          : action === "put"
+            ? s.put(value)
+            : action === "patch"
+              ? s.get(value.id)
+              : s.delete(value);
+      r.onsuccess = () => {
+        if (action === "patch") {
+          if (!r.result) {
+            result = null;
+            return;
+          }
+          result = { ...r.result, ...value.patch };
+          s.put(result);
+        } else result = r.result;
+      };
+    }
     tx.oncomplete = () => {
       db.close();
       resolve(result);
