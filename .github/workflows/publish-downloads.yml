@@ -1,0 +1,50 @@
+name: Publish latest APK downloads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'releases/*.apk'
+      - 'releases/*-AndroidStudio.zip'
+      - 'scripts/prepare-release.py'
+      - '.github/workflows/publish-downloads.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-latest-downloads
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Prepare existing signed artifacts and stable filenames
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python3 scripts/prepare-release.py --output "$RUNNER_TEMP/downloads")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Publish release attachments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          APP_VERSION: ${{ steps.assets.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="v$APP_VERSION"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "여백 $APP_VERSION" --notes-file "$RUNNER_TEMP/downloads/NOTES.md" --draft
+          fi
+          gh release upload "$tag" "$RUNNER_TEMP/downloads/"*.apk "$RUNNER_TEMP/downloads/"*.zip "$RUNNER_TEMP/downloads/"*.sha256 --clobber
+          gh release edit "$tag" --draft=false --latest --title "여백 $APP_VERSION" --notes-file "$RUNNER_TEMP/downloads/NOTES.md"
