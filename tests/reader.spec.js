@@ -148,8 +148,11 @@ test("narrow mobile supports swipe, scroll scrubbing and scan fallback", async (
     ),
   ).toBe(true);
   await page.getByRole("button", { name: "읽기 설정" }).click();
-  await page.getByRole("switch", { name: "상단 · 하단바 기본 표시" }).click();
+  await expect(
+    page.getByRole("switch", { name: "상단 · 하단바 기본 표시" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "패널 닫기" }).click();
+  await page.locator(".reading-scroll").click({ position: { x: 160, y: 400 } });
   await page.getByRole("button", { name: "읽기 도구 표시" }).click();
   await page.getByRole("button", { name: "책장으로 돌아가기" }).click();
 });

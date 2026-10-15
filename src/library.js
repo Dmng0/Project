@@ -165,9 +165,6 @@ export const defaults = {
   theme: "paper",
   indent: true,
   continuous: false,
-  bars: true,
-  cropTop: 0,
-  cropBottom: 0,
 };
 
 export function scopedBooks(books, scope) {

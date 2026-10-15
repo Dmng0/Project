@@ -18,6 +18,8 @@ import { pdfjs, extractPage, destinationPage } from "./pdf";
 import { nextBook, scopedBooks, themes, orderedBooks } from "./library";
 import PdfPage from "./PdfPage";
 import FlowReader from "./FlowReader";
+import ProseBlocks, { pageParagraphs } from "./ProseBlocks";
+import { pageLayout } from "./page-layout";
 import { buildFlow, flowSearch, pagedFlowNoteRanges } from "./flow-text";
 import { quotationRanges } from "./pdf-model";
 import BottomSheet from "./BottomSheet";
@@ -27,7 +29,6 @@ const IconButton = ({ label, children, ...props }) => (
     {children}
   </button>
 );
-const normalize = (s) => s.replace(/\s+/g, " ").trim();
 export default function Reader({
   book,
   books,
@@ -44,7 +45,7 @@ export default function Reader({
     [pages, setPages] = useState([]),
     [outline, setOutline] = useState([]),
     [page, setPage] = useState(book.page || 1),
-    [bars, setBars] = useState(s.bars),
+    [bars, setBars] = useState(true),
     [panel, setPanel] = useState(null),
     [search, setSearch] = useState(""),
     [error, setError] = useState(""),
@@ -293,6 +294,20 @@ export default function Reader({
         through.selectNodeContents(root);
         through.setEnd(range.endContainer, range.endOffset);
         end = through.toString().length;
+        // Table cells may be reordered from PDF column order into reading order.
+        // Keep the original glyph offsets for precise, repeated cell quotations.
+        const firstSource = startElement?.closest(".page-source"),
+          lastSource = endElement?.closest(".page-source");
+        if (firstSource && lastSource) {
+          before.selectNodeContents(firstSource);
+          before.setEnd(range.startContainer, range.startOffset);
+          through.selectNodeContents(lastSource);
+          through.setEnd(range.endContainer, range.endOffset);
+          start =
+            Number(firstSource.dataset.sourceStart) + before.toString().length;
+          end =
+            Number(lastSource.dataset.sourceStart) + through.toString().length;
+        }
       }
       setSelection({
         quote,
@@ -314,7 +329,7 @@ export default function Reader({
       panel ||
       loading ||
       Date.now() < ignoreClick.current ||
-      e.target.closest("button,a,input,textarea,mark") ||
+      e.target.closest("button,a,input,textarea,mark,.pdf-table-wrap") ||
       window.getSelection()?.toString().trim()
     )
       return;
@@ -323,6 +338,19 @@ export default function Reader({
     if (s.mode === "paged" && x < 0.25) go(pageRef.current - 1);
     else if (s.mode === "paged" && x > 0.75) go(pageRef.current + 1);
     else setBars((v) => !v);
+  }
+  function showNotes(note) {
+    document.activeElement?.blur();
+    window.getSelection()?.removeAllRanges();
+    setSelection(null);
+    setDraft(null);
+    setPanel("notes");
+    if (note?.id)
+      requestAnimationFrame(() =>
+        document
+          .getElementById(`note-${note.id}`)
+          ?.scrollIntoView({ block: "nearest" }),
+      );
   }
   function startNote(note = selection) {
     setDraft(
@@ -359,6 +387,7 @@ export default function Reader({
           : [...notes, next],
     });
     if (!saved) return;
+    document.activeElement?.blur();
     setDraft(null);
     notify("주석을 저장했습니다.");
   }
@@ -375,8 +404,9 @@ export default function Reader({
           key={`${r.note.id}-${offset}-${start}`}
           title={r.note.body}
           onClick={(e) => {
+            if (window.getSelection()?.toString().trim()) return;
             e.stopPropagation();
-            startNote(r.note);
+            showNotes(r.note);
           }}
         >
           {text.slice(start, end)}
@@ -399,7 +429,6 @@ export default function Reader({
       ),
       ...pagedFlowNoteRanges(flow, notes, data.num),
     ].sort((a, b) => a.start - b.start);
-    let offset = 0;
     return (
       <article className="reading-page" key={data.num} data-page={data.num}>
         {s.view === "original" || !data.plain.trim() ? (
@@ -416,9 +445,7 @@ export default function Reader({
               notes={notes.filter(
                 (n) => n.page <= data.num && (n.endPage || n.page) >= data.num,
               )}
-              onNote={startNote}
-              cropTop={s.cropTop}
-              cropBottom={s.cropBottom}
+              onNote={showNotes}
             />
           </>
         ) : (
@@ -435,55 +462,48 @@ export default function Reader({
               lineHeight: s.line,
             }}
           >
-            {data.lines.map((parts, i) => {
-              const text = parts.map((p) => p.text).join("");
-              return (
-                <p
-                  key={i}
-                  className={
-                    notes.some(
-                      (n) =>
-                        n.page === data.num &&
-                        normalize(n.quote).includes(normalize(text)) &&
-                        normalize(text),
-                    )
-                      ? "annotated-paragraph"
-                      : ""
-                  }
-                >
-                  {parts.map((part, j) => {
-                    const content = highlighted(part.text, offset, ranges);
-                    offset += part.text.length;
-                    return part.link ? (
-                      part.link.dest ? (
-                        <button
-                          key={j}
-                          className="text-pdf-link"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            follow(part.link.dest);
-                          }}
-                        >
-                          {content}
-                        </button>
-                      ) : (
-                        <a
-                          key={j}
-                          href={part.link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {content}
-                        </a>
-                      )
-                    ) : (
-                      <React.Fragment key={j}>{content}</React.Fragment>
-                    );
-                  })}
-                </p>
-              );
-            })}
+            <ProseBlocks
+              paragraphs={pageParagraphs(pageLayout(data.lines))}
+              renderPart={(part, j) => {
+                const content = highlighted(
+                  part.text,
+                  part.sourceStart,
+                  ranges,
+                );
+                return part.link ? (
+                  part.link.dest ? (
+                    <button
+                      key={j}
+                      className="text-pdf-link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        follow(part.link.dest);
+                      }}
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <a
+                      key={j}
+                      href={part.link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {content}
+                    </a>
+                  )
+                ) : (
+                  <span
+                    className="page-source"
+                    data-source-start={part.sourceStart}
+                    key={j}
+                  >
+                    {content}
+                  </span>
+                );
+              }}
+            />
           </div>
         )}
       </article>
@@ -534,13 +554,7 @@ export default function Reader({
               fill={book.bookmarks.includes(page) ? "currentColor" : "none"}
             />
           </IconButton>
-          <IconButton
-            label="주석"
-            onClick={() => {
-              setDraft(null);
-              setPanel("notes");
-            }}
-          >
+          <IconButton label="주석" onClick={() => showNotes()}>
             <NotebookPen size={19} />
           </IconButton>
           <IconButton label="다른 PDF 보기" onClick={() => setPanel("books")}>
@@ -578,6 +592,10 @@ export default function Reader({
           scrollIntent.current = Date.now() + 1500;
         }}
         onTouchStart={(e) => {
+          if (e.target.closest(".pdf-table-wrap")) {
+            touch.current = null;
+            return;
+          }
           touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
           scrollIntent.current = Date.now() + 1500;
         }}
@@ -648,6 +666,12 @@ export default function Reader({
           value={page}
           onChange={(e) => go(Number(e.target.value))}
         />
+        <span
+          className="reader-page-count"
+          aria-label="현재 페이지와 전체 페이지"
+        >
+          {page} / {book.pages}
+        </span>
       </footer>
       {!bars && !panel && (
         <button
@@ -675,6 +699,7 @@ export default function Reader({
         <BottomSheet
           key={panel}
           kind={panel}
+          composing={panel === "notes" && !!draft}
           title={
             {
               settings: "읽기 설정",
@@ -691,11 +716,7 @@ export default function Reader({
           }}
         >
           {panel === "settings" ? (
-            <ReaderSettings
-              settings={s}
-              setSettings={setSettings}
-              onBars={setBars}
-            />
+            <ReaderSettings settings={s} setSettings={setSettings} />
           ) : panel === "search" ? (
             <>
               <div className="search-field">
@@ -834,7 +855,13 @@ export default function Reader({
                     />
                   </label>
                   <div className="note-buttons">
-                    <button type="button" onClick={() => setDraft(null)}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        document.activeElement?.blur();
+                        setDraft(null);
+                      }}
+                    >
                       취소
                     </button>
                     <button className="primary">주석 저장</button>
@@ -858,7 +885,11 @@ export default function Reader({
               )}
               <div className="result-list">
                 {notes.map((note) => (
-                  <div className="saved-note" key={note.id}>
+                  <div
+                    className="saved-note"
+                    key={note.id}
+                    id={`note-${note.id}`}
+                  >
                     <button
                       className="note-jump"
                       onClick={() => {

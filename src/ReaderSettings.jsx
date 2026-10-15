@@ -1,7 +1,7 @@
 import React from "react";
 import { Check } from "lucide-react";
 import { themes } from "./library";
-export default function ReaderSettings({ settings: s, setSettings, onBars }) {
+export default function ReaderSettings({ settings: s, setSettings }) {
   const setting = (key, value) => setSettings((v) => ({ ...v, [key]: value }));
   return (
     <>
@@ -54,8 +54,6 @@ export default function ReaderSettings({ settings: s, setSettings, onBars }) {
         ["size", "글자 크기", 13, 32, 1, "px"],
         ["line", "행간", 1.2, 2.8, 0.1, ""],
         ["margin", "여백", 8, 64, 4, "px"],
-        ["cropTop", "원본 상단 가리기", 0, 15, 1, "%"],
-        ["cropBottom", "원본 하단 가리기", 0, 15, 1, "%"],
       ].map(([key, label, min, max, step, unit]) => (
         <label className="setting-row" key={key}>
           {label}
@@ -99,11 +97,6 @@ export default function ReaderSettings({ settings: s, setSettings, onBars }) {
           "연속 보기",
           "폴더 안의 정렬 순서대로 다음 PDF로 이어집니다.",
         ],
-        [
-          "bars",
-          "상단 · 하단바 기본 표시",
-          "화면을 터치하면 도구를 숨기거나 표시합니다.",
-        ],
       ].map(([key, label, detail]) => (
         <div className="setting-row toggle-row" key={key}>
           <div>
@@ -117,7 +110,6 @@ export default function ReaderSettings({ settings: s, setSettings, onBars }) {
             className={`switch ${s[key] ? "on" : ""}`}
             onClick={() => {
               setting(key, !s[key]);
-              if (key === "bars") onBars(!s[key]);
             }}
           >
             <span />
@@ -130,8 +122,8 @@ export default function ReaderSettings({ settings: s, setSettings, onBars }) {
       </p>
 
       <p className="setting-note">
-        원문 여백의 쪽수는 자동으로 가립니다. 이미지형 쪽수는 상·하단 가리기로
-        조절하세요. 가림 영역에 본문이 포함되지 않도록 확인해 주세요.
+        원문 여백의 텍스트형 쪽수는 자동으로 가립니다. 도구는 본문 중앙을 터치해
+        표시하거나 숨길 수 있습니다.
       </p>
     </>
   );

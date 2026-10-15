@@ -189,6 +189,11 @@ test("select a sentence, create, persist, edit and delete notes", async ({
   await page.getByRole("button", { name: "Notes", exact: true }).click();
   await expect(page.locator(".prose mark")).toBeVisible();
   await page.locator(".prose mark").click();
+  await expect(page.locator(".note-form")).toHaveCount(0);
+  expect(await page.evaluate(() => document.activeElement.tagName)).not.toBe(
+    "TEXTAREA",
+  );
+  await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByLabel("주석 내용").fill("Edited note.");
   await page.getByRole("button", { name: "주석 저장", exact: true }).click();
   await expect(page.locator(".saved-note")).toContainText("Edited note.");

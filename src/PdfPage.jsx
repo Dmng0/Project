@@ -1,15 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { pdfjs, safeLink, viewportRectangle } from "./pdf";
 import "./pdf-text-layer.css";
-export default function PdfPage({
-  doc,
-  data,
-  onLink,
-  notes = [],
-  onNote,
-  cropTop = 0,
-  cropBottom = 0,
-}) {
+export default function PdfPage({ doc, data, onLink, notes = [], onNote }) {
   const noteSignature = JSON.stringify(notes);
   const canvas = useRef(),
     container = useRef(),
@@ -173,18 +165,6 @@ export default function PdfPage({
             />
           );
         })}
-      {cropTop > 0 && (
-        <div
-          className="pdf-crop-mask"
-          style={{ top: 0, height: `${cropTop}%` }}
-        />
-      )}
-      {cropBottom > 0 && (
-        <div
-          className="pdf-crop-mask"
-          style={{ bottom: 0, height: `${cropBottom}%` }}
-        />
-      )}
     </div>
   );
 }

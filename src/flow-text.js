@@ -1,3 +1,4 @@
+import { pageLayout } from "./page-layout.js";
 import { quotationRanges } from "./pdf-model.js";
 const sentenceEnd = /[.!?。！？…]["'”’」』)\]]*$/u;
 const heading =
@@ -83,7 +84,15 @@ export function buildFlow(pages) {
       continue;
     }
     if (!run) beginRun(data.num);
-    const lines = data.lines.map((parts) => lineInfo(parts, data.num));
+    const lines = pageLayout(data.lines).flatMap((block, index) =>
+      block.kind === "table"
+        ? block.rows.map((cells) => ({
+            ...lineInfo(cells.flat(), data.num),
+            cells,
+            table: `${data.num}-${index}`,
+          }))
+        : [lineInfo(block.parts, data.num)],
+    );
     const gaps = lines.slice(1).map((l, i) => lines[i].y - l.y),
       typicalGap = median(gaps) || median(lines.map((l) => l.font)) * 1.4,
       baseX = Math.min(...lines.map((l) => l.x));
@@ -92,9 +101,18 @@ export function buildFlow(pages) {
       const rawStart = sourceOffset;
       sourceOffset += line.parts.reduce((n, p) => n + p.text.length, 0);
       if (!line.text) continue;
-      const isNew = boundary(previous, line, typicalGap, baseX);
+      const isNew =
+        line.cells ||
+        previous?.cells ||
+        boundary(previous, line, typicalGap, baseX);
       if (isNew) {
-        paragraph = { parts: [], heading: heading.test(line.text) };
+        paragraph = {
+          parts: [],
+          heading: heading.test(line.text),
+          ...(line.cells
+            ? { table: line.table, cells: line.cells.map(() => []) }
+            : {}),
+        };
         run.paragraphs.push(paragraph);
       }
       if (run.parts.length) {
@@ -116,6 +134,7 @@ export function buildFlow(pages) {
             separator: true,
           };
           paragraph.parts.push(space);
+          if (paragraph.cells) paragraph.cells[0].push(space);
           run.parts.push(space);
           run.text += gap;
         }
@@ -134,12 +153,16 @@ export function buildFlow(pages) {
             text,
             link: part.link,
             page: data.num,
-            sourceStart: offset + left,
-            sourceEnd: offset + right,
+            sourceStart: (part.sourceStart ?? offset) + left,
+            sourceEnd: (part.sourceStart ?? offset) + right,
             start: run.text.length,
             end: run.text.length + text.length,
           };
           paragraph.parts.push(piece);
+          if (paragraph.cells)
+            paragraph.cells[
+              line.cells.findIndex((cell) => cell.includes(part))
+            ].push(piece);
           run.parts.push(piece);
           run.text += text;
         }

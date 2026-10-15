@@ -1656,16 +1656,11 @@ body,
   z-index: 2;
   user-select: text;
 }
-.pdf-number-mask,
-.pdf-crop-mask {
+.pdf-number-mask {
   position: absolute;
   z-index: 6;
   pointer-events: auto;
   background: #fff;
-}
-.pdf-crop-mask {
-  left: 0;
-  width: 100%;
 }
 .pdf-link-area {
   position: absolute;
@@ -2112,3 +2107,39 @@ body,
 .continuous-scroll .scroll-end-hint {
   padding-top: 12px;
 }
+
+/* Keep table columns intact without widening the reader itself. */
+.pdf-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  margin: 1em 0;
+  text-indent: 0;
+}
+.pdf-text-table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+  text-indent: 0;
+  font: inherit;
+  line-height: 1.5;
+}
+.pdf-text-table td {
+  border: 1px solid #8886;
+  border: 1px solid color-mix(in srgb, var(--read-ink) 35%, transparent);
+  padding: .45em .65em;
+  min-width: 5em;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.pdf-text-table tr:first-child td {
+  background: color-mix(in srgb, var(--read-ink) 5%, var(--read-bg));
+}
+.reader-page-count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.note-form { scroll-margin: 8px; }
+.note-form textarea { scroll-margin-block: 12px; }

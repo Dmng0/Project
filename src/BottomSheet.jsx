@@ -1,8 +1,52 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useLayoutEffect } from "react";
 import { X } from "lucide-react";
-export default function BottomSheet({ title, kind, close, children }) {
+export default function BottomSheet({
+  title,
+  kind,
+  close,
+  children,
+  composing = false,
+}) {
   const [height, setHeight] = useState(50);
   const drag = useRef(null);
+  const body = useRef(null);
+  const baseline = useRef(window.innerHeight);
+  const [viewport, setViewport] = useState(() => ({
+    height: window.visualViewport?.height || window.innerHeight,
+    top: window.visualViewport?.offsetTop || 0,
+  }));
+  useLayoutEffect(() => {
+    const visual = window.visualViewport;
+    const measure = () => {
+      baseline.current = Math.max(baseline.current, window.innerHeight);
+      setViewport({
+        height: visual?.height || window.innerHeight,
+        top: visual?.offsetTop || 0,
+      });
+    };
+    measure();
+    visual?.addEventListener("resize", measure);
+    visual?.addEventListener("scroll", measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      visual?.removeEventListener("resize", measure);
+      visual?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (!composing) return;
+    const frame = requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (body.current?.contains(active) && active.tagName === "TEXTAREA")
+        active.scrollIntoView({ block: "nearest", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [composing, viewport.height, viewport.top]);
+  const keyboard = composing && baseline.current - viewport.height > 100;
+  const sheetHeight = keyboard
+    ? viewport.height * 0.94
+    : Math.min((window.innerHeight * height) / 100, viewport.height * 0.9);
   const resize = (e) => {
     if (!drag.current) return;
     setHeight(
@@ -17,10 +61,18 @@ export default function BottomSheet({ title, kind, close, children }) {
     );
   };
   return (
-    <div className="reader-overlay resizable-overlay" onClick={close}>
+    <div
+      className="reader-overlay resizable-overlay"
+      style={{ top: viewport.top, height: viewport.height, bottom: "auto" }}
+      onClick={close}
+    >
       <section
         className={`bottom-sheet resizable-sheet ${kind === "settings" ? "settings-sheet" : ""}`}
-        style={{ height: `${height}dvh` }}
+        style={{
+          height: sheetHeight,
+          maxHeight: viewport.height,
+          minHeight: Math.min(window.innerHeight * 0.28, viewport.height * 0.5),
+        }}
         onClick={(e) => e.stopPropagation()}
         aria-label={title}
       >
@@ -57,7 +109,9 @@ export default function BottomSheet({ title, kind, close, children }) {
             <X size={21} />
           </button>
         </div>
-        <div className="sheet-body">{children}</div>
+        <div className="sheet-body" ref={body}>
+          {children}
+        </div>
       </section>
     </div>
   );
