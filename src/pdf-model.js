@@ -65,7 +65,18 @@ export function pdfLines(items, annotations, height) {
         y + h > a.rect[1] &&
         y < a.rect[3],
     );
+    const annotation = annotations.some(
+      (a) =>
+        ["Link", "Text", "Popup", "FreeText", "Widget"].includes(a.subtype) &&
+        a.rect &&
+        x + item.width > a.rect[0] &&
+        x < a.rect[2] &&
+        y + h > a.rect[1] &&
+        y < a.rect[3],
+    );
     parts.push({
+      rawText: item.str,
+      annotation,
       text: item.str + (item.hasEOL ? "" : " "),
       x,
       y,

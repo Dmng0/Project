@@ -29,7 +29,7 @@ test("line and page wrapping become a single paragraph without page-sized gaps",
     [1, 2],
   );
 });
-test("preserve sentence breaks, indentation, dialogue and chapter boundaries", () => {
+test("preserve sentence, dialogue and chapter boundaries without invented Korean wrap spaces", () => {
   const flow = buildFlow([
     page(1, [
       { text: "제1화 시작", y: 540 },
@@ -41,7 +41,7 @@ test("preserve sentence breaks, indentation, dialogue and chapter boundaries", (
   ]);
   assert.equal(flow[0].paragraphs.length, 4);
   assert.equal(flow[0].paragraphs[0].heading, true);
-  assert.ok(flow[0].text.includes("새 문단을 계속한다."));
+  assert.ok(flow[0].text.includes("새 문단을계속한다."));
 });
 test("join common Korean verb endings split over a page boundary", () => {
   assert.equal(

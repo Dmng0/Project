@@ -4,7 +4,7 @@ export function pageLayout(lines) {
   let offset = 0;
   const source = lines.map((line, index) =>
     line.map((p) => {
-      const part = { ...p, sourceStart: offset, line: index };
+      const part = { ...p, sourceStart: p.sourceStart ?? offset, line: index };
       offset += p.text.length;
       return part;
     }),

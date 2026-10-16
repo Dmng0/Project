@@ -5,7 +5,8 @@ async function pdf(name, content) {
   const font = await doc.embedFont(StandardFonts.TimesRoman);
   for (const text of content) {
     const p = doc.addPage([420, 600]);
-    p.drawText(text, { x: 35, y: 540, size: 16, font });
+    if (text) p.drawText(text, { x: 35, y: 540, size: 16, font });
+    else p.drawRectangle({ x: 35, y: 300, width: 120, height: 160 });
   }
   return {
     name,
@@ -152,7 +153,10 @@ test("narrow mobile supports swipe, scroll scrubbing and scan fallback", async (
     page.getByRole("switch", { name: "상단 · 하단바 기본 표시" }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "패널 닫기" }).click();
-  await page.locator(".reading-scroll").click({ position: { x: 160, y: 400 } });
+  await expect(page.locator(".reader")).toHaveClass(/bars-visible/);
+  // Use the reader margin while the PDF canvas/text layer finishes painting.
+  await page.locator(".reading-scroll").click({ position: { x: 10, y: 400 } });
+  await expect(page.locator(".reader")).not.toHaveClass(/bars-visible/);
   await page.getByRole("button", { name: "읽기 도구 표시" }).click();
   await page.getByRole("button", { name: "책장으로 돌아가기" }).click();
 });

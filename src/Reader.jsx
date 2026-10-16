@@ -19,9 +19,9 @@ import { nextBook, scopedBooks, themes, orderedBooks } from "./library";
 import PdfPage from "./PdfPage";
 import FlowReader from "./FlowReader";
 import ProseBlocks, { pageParagraphs } from "./ProseBlocks";
+import { novelLines, novelQuotationRanges } from "./novel-text";
 import { pageLayout } from "./page-layout";
 import { buildFlow, flowSearch, pagedFlowNoteRanges } from "./flow-text";
-import { quotationRanges } from "./pdf-model";
 import BottomSheet from "./BottomSheet";
 import ReaderSettings from "./ReaderSettings";
 const IconButton = ({ label, children, ...props }) => (
@@ -255,7 +255,10 @@ export default function Reader({
             startElement.closest(".flow-source") ||
             startElement.querySelector(".flow-source") ||
             flowRoot.querySelector(".flow-source"),
-          last = endElement.closest(".flow-source") || first;
+          last =
+            endElement.closest(".flow-source") ||
+            [...endElement.querySelectorAll(".flow-source")].at(-1) ||
+            first;
         const before = document.createRange();
         before.selectNodeContents(flowRoot);
         before.setEnd(range.startContainer, range.startOffset);
@@ -423,7 +426,7 @@ export default function Reader({
       .map((p) => p.text)
       .join("");
     const ranges = [
-      ...quotationRanges(
+      ...novelQuotationRanges(
         fullText,
         notes.filter((n) => n.anchorView !== "flow" && n.page === data.num),
       ),
@@ -463,7 +466,7 @@ export default function Reader({
             }}
           >
             <ProseBlocks
-              paragraphs={pageParagraphs(pageLayout(data.lines))}
+              paragraphs={pageParagraphs(pageLayout(novelLines(data.lines)))}
               renderPart={(part, j) => {
                 const content = highlighted(
                   part.text,

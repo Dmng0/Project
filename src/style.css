@@ -2143,3 +2143,4 @@ body,
 }
 .note-form { scroll-margin: 8px; }
 .note-form textarea { scroll-margin-block: 12px; }
+.flow-empty-page { display: block; height: 0; margin: 0; padding: 0; }

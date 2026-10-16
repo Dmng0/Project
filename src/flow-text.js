@@ -1,5 +1,9 @@
+import {
+  novelLines,
+  novelQuotationRanges,
+  compactNovelText,
+} from "./novel-text.js";
 import { pageLayout } from "./page-layout.js";
-import { quotationRanges } from "./pdf-model.js";
 const sentenceEnd = /[.!?。！？…]["'”’」』)\]]*$/u;
 const heading =
   /^(?:제\s*\d+\s*[장화부편]|\d+\s*[장화부편]|chapter\s+\d+|prologue|epilogue|프롤로그|에필로그|[＊*]{3,}|[─━—]{3,})/iu;
@@ -23,43 +27,38 @@ function lineInfo(parts, page) {
     text: lineText(parts),
     x: measured.length ? Math.min(...measured.map((p) => p.x)) : 0,
     y: measured[0]?.y,
+    breakBeforeSpace: parts[0]?.breakBeforeSpace,
+    breakAfterSpace: parts.at(-1)?.breakAfterSpace,
     font: median(measured.map((p) => p.fontSize)) || 12,
   };
 }
-function boundary(previous, current, typicalGap, baseX) {
+function boundary(previous, current) {
   if (!previous) return true;
   if (heading.test(previous.text) || heading.test(current.text)) return true;
-  const linkLine = (line) => line.parts.every((p) => !p.text.trim() || p.link);
-  if (linkLine(previous) || linkLine(current)) return true;
   if (current.font > previous.font * 1.2 || previous.font > current.font * 1.2)
     return true;
   if (/^[“‘「『"'•●※]/u.test(current.text) || /^[-–—]\s+\S/u.test(current.text))
     return true;
-  if (sentenceEnd.test(previous.text)) return true;
-  if (
-    current.page === previous.page &&
-    Number.isFinite(previous.y) &&
-    Number.isFinite(current.y) &&
-    previous.y - current.y > typicalGap * 1.5
-  )
-    return true;
-  if (current.x > baseX + current.font * 0.7) return true;
-  return false;
+  return sentenceEnd.test(previous.text);
 }
 function joiner(previous, current) {
-  if (!previous || !current) return "";
-  if (/[\u00ad]$/u.test(previous)) return "";
-  if (/[-‐]$/u.test(previous) && /^\p{L}/u.test(current)) return "";
-  if (/\s$/u.test(previous) || /^\s/u.test(current)) return " ";
-  if (
-    /^[,.;:!?，。！？、)”’」』]/u.test(current) ||
-    /[（(“‘「『]$/u.test(previous)
-  )
+  const a = previous?.text || "",
+    b = current.text;
+  if (!a || !b) return "";
+  if (/[\u00ad]$/u.test(a)) return "";
+  if (/[-‐]$/u.test(a) && /^\p{L}/u.test(b)) return "";
+  if (/^[,.;:!?，。！？、)”’」』]/u.test(b) || /[（(“‘「『]$/u.test(a))
     return "";
-  // Common Korean endings can be split in the middle by PDF line/page wrapping.
+  // Keep spaces actually encoded at the PDF line edge, but never invent one
+  // between Korean/CJK characters split by layout or a page boundary.
+  if (previous.breakAfterSpace || current.breakBeforeSpace) return " ";
   if (
-    /(?:했|되|있|없|않|었|았|겠|합니|입니|됩니|습니)$/u.test(previous) &&
-    /^(?:다|던|고|지만|으며|습니다|었다|았다)/u.test(current)
+    /[\p{Script=Hangul}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]$/u.test(
+      a,
+    ) &&
+    /^[\p{Script=Hangul}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(
+      b,
+    )
   )
     return "";
   return " ";
@@ -76,7 +75,28 @@ export function buildFlow(pages) {
     previous = null;
   };
   for (const data of pages) {
-    if (!data.plain.trim()) {
+    const cleaned = novelLines(data.lines);
+    if (!cleaned.length) {
+      if (
+        data.hasArtwork === false ||
+        (data.lines.length && !data.hasArtwork)
+      ) {
+        if (run && paragraph) {
+          const anchor = {
+            text: "",
+            page: data.num,
+            sourceStart: 0,
+            sourceEnd: 0,
+            start: run.text.length,
+            end: run.text.length,
+            anchor: true,
+          };
+          run.parts.push(anchor);
+          paragraph.parts.push(anchor);
+          if (paragraph.cells) paragraph.cells.at(-1).push(anchor);
+        } else blocks.push({ kind: "anchor", num: data.num });
+        continue;
+      }
       blocks.push({ kind: "scan", data });
       run = null;
       paragraph = null;
@@ -84,7 +104,7 @@ export function buildFlow(pages) {
       continue;
     }
     if (!run) beginRun(data.num);
-    const lines = pageLayout(data.lines).flatMap((block, index) =>
+    const lines = pageLayout(cleaned).flatMap((block, index) =>
       block.kind === "table"
         ? block.rows.map((cells) => ({
             ...lineInfo(cells.flat(), data.num),
@@ -93,18 +113,9 @@ export function buildFlow(pages) {
           }))
         : [lineInfo(block.parts, data.num)],
     );
-    const gaps = lines.slice(1).map((l, i) => lines[i].y - l.y),
-      typicalGap = median(gaps) || median(lines.map((l) => l.font)) * 1.4,
-      baseX = Math.min(...lines.map((l) => l.x));
-    let sourceOffset = 0;
     for (const line of lines) {
-      const rawStart = sourceOffset;
-      sourceOffset += line.parts.reduce((n, p) => n + p.text.length, 0);
       if (!line.text) continue;
-      const isNew =
-        line.cells ||
-        previous?.cells ||
-        boundary(previous, line, typicalGap, baseX);
+      const isNew = line.cells || previous?.cells || boundary(previous, line);
       if (isNew) {
         paragraph = {
           parts: [],
@@ -116,13 +127,18 @@ export function buildFlow(pages) {
         run.paragraphs.push(paragraph);
       }
       if (run.parts.length) {
-        let gap = isNew
-          ? " "
-          : joiner(run.parts.at(-1).text, line.parts[0]?.text || "");
-        const last = run.parts.at(-1);
+        let gap = isNew ? " " : joiner(previous, line);
+        const last = run.parts.findLast((p) => p.text);
         if (!isNew && last.text.endsWith("\u00ad")) {
           last.text = last.text.slice(0, -1);
           last.end--;
+          last.sourceEnd--;
+          for (const anchor of run.parts.filter(
+            (p) => p.anchor && p.start > last.end,
+          )) {
+            anchor.start--;
+            anchor.end--;
+          }
           run.text = run.text.slice(0, -1);
         }
         if (gap) {
@@ -139,7 +155,6 @@ export function buildFlow(pages) {
           run.text += gap;
         }
       }
-      let offset = rawStart;
       for (let i = 0; i < line.parts.length; i++) {
         const part = line.parts[i],
           raw = part.text;
@@ -149,12 +164,30 @@ export function buildFlow(pages) {
         if (i === line.parts.length - 1) right = raw.trimEnd().length;
         const text = raw.slice(left, right);
         if (text) {
+          const cell = line.cells?.findIndex((cell) => cell.includes(part));
+          if (
+            cell > 0 &&
+            line.cells[cell][0] === part &&
+            !/\s$/u.test(run.text)
+          ) {
+            const space = {
+              text: " ",
+              page: data.num,
+              start: run.text.length,
+              end: run.text.length + 1,
+              separator: true,
+            };
+            paragraph.parts.push(space);
+            paragraph.cells[cell].push(space);
+            run.parts.push(space);
+            run.text += " ";
+          }
           const piece = {
             text,
             link: part.link,
             page: data.num,
-            sourceStart: (part.sourceStart ?? offset) + left,
-            sourceEnd: (part.sourceStart ?? offset) + right,
+            sourceStart: part.sourceStart + left,
+            sourceEnd: part.sourceStart + right,
             start: run.text.length,
             end: run.text.length + text.length,
           };
@@ -166,7 +199,6 @@ export function buildFlow(pages) {
           run.parts.push(piece);
           run.text += text;
         }
-        offset += raw.length;
       }
       previous = line;
     }
@@ -184,10 +216,15 @@ export function flowNoteRanges(run, notes) {
     );
     if (!source.length) continue;
     if (note.anchorView === "flow" && note.flowRun === run.id) {
-      const match = quotationRanges(run.text, [
+      const match = novelQuotationRanges(run.text, [
         { ...note, anchorView: "text" },
       ]);
-      if (match.length) {
+      if (
+        match.length &&
+        match.every(
+          (r) => r.start >= source[0].start && r.end <= source.at(-1).end,
+        )
+      ) {
         results.push(...match);
         continue;
       }
@@ -211,8 +248,8 @@ export function flowNoteRanges(run, notes) {
             last.start +
             Math.min(last.text.length, note.end - last.sourceStart);
         if (
-          run.text.slice(start, end).replace(/\s+/g, " ").trim() ===
-          note.quote.replace(/\s+/g, " ").trim()
+          compactNovelText(run.text.slice(start, end)) ===
+          compactNovelText(note.quote)
         ) {
           results.push({ start, end, note });
           continue;
@@ -222,7 +259,7 @@ export function flowNoteRanges(run, notes) {
     const start = source[0].start,
       end = source.at(-1).end;
     results.push(
-      ...quotationRanges(run.text.slice(start, end), [
+      ...novelQuotationRanges(run.text.slice(start, end), [
         { ...note, start: null, end: null },
       ]).map((r) => ({ ...r, start: r.start + start, end: r.end + start })),
     );

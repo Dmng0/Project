@@ -3,6 +3,7 @@ import worker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 export { pdfjs };
 
+import { novelLines } from "./novel-text";
 import { pdfLines, marginPageNumber, itemRectangle } from "./pdf-model";
 export { safeLink, viewportRectangle } from "./pdf-model";
 export async function extractPage(doc, num) {
@@ -13,7 +14,29 @@ export async function extractPage(doc, num) {
     p.getAnnotations({ intent: "display" }),
   ]);
   const lines = pdfLines(text.items, annotations, p.view[3] - p.view[1]);
+  let hasArtwork;
+  if (!novelLines(lines).length) {
+    const operators = await p.getOperatorList();
+    const paints = new Set(
+      [
+        pdfjs.OPS.constructPath,
+        pdfjs.OPS.stroke,
+        pdfjs.OPS.fill,
+        pdfjs.OPS.eoFill,
+        pdfjs.OPS.fillStroke,
+        pdfjs.OPS.eoFillStroke,
+        pdfjs.OPS.paintImageXObject,
+        pdfjs.OPS.paintInlineImageXObject,
+        pdfjs.OPS.paintImageMaskXObject,
+        pdfjs.OPS.paintImageXObjectRepeat,
+        pdfjs.OPS.paintImageMaskXObjectRepeat,
+        pdfjs.OPS.shadingFill,
+      ].filter(Number.isInteger),
+    );
+    hasArtwork = operators.fnArray.some((op) => paints.has(op));
+  }
   return {
+    hasArtwork,
     num,
     text,
     lines,

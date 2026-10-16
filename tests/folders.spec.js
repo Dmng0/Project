@@ -68,6 +68,17 @@ test("drag book order persists and continuous reading follows the folder order",
   await page.getByRole("button", { name: "B 순서 변경", exact: true }).focus();
   await page.keyboard.press("Space");
   await expect(page.locator(".book-card.dragging")).toHaveCount(1);
+  // Wait for DnD's initial collision measurement before sending movement keys.
+  await expect(
+    page.locator('[id^="DndLiveRegion-"]').filter({ hasText: "B 위치로 이동" }),
+  ).toHaveCount(1);
+  // KeyboardSensor installs its key listener after the activation event.
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
   await page.keyboard.press("ArrowUp");
   await expect(
     page.locator('[id^="DndLiveRegion-"]').filter({ hasText: "A 위치로 이동" }),

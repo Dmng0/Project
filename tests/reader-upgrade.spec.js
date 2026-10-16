@@ -10,6 +10,7 @@ async function fixture(name, { linked = false, long = false } = {}) {
       { x: 35, y: 420, size: 16, font },
     );
     p.drawText(String(i + 1), { x: 205, y: 20, size: 12, font });
+    if (long) p.drawText(`${name} reading`, { x: 35, y: 460, size: 16, font });
     if (long)
       for (let n = 0; n < 18; n++)
         p.drawText(`Story paragraph ${i + 1}.${n + 1} continues.`, {
@@ -292,6 +293,8 @@ test("folder-scoped next book and scroll continuation; other books are grouped",
   await page.locator(".reading-scroll").dispatchEvent("wheel", { deltaY: 150 });
   await expect(page.locator(".reader-top h1")).toHaveText("A2");
   await expect(page.locator(".reading-flow")).toHaveCount(1);
+  // The new title can render before its PDF finishes replacing the old document.
+  await expect(page.locator(".reading-flow")).toContainText("A2.pdf reading");
   await page
     .locator(".reading-scroll")
     .evaluate((el) => (el.scrollTop = el.scrollHeight));

@@ -24,6 +24,15 @@ export default function FlowReader({
       {blocks.map((block) => {
         const ranges =
           block.kind === "text" ? flowNoteRanges(block, notes) : [];
+        if (block.kind === "anchor")
+          return (
+            <span
+              className="flow-empty-page"
+              data-page={block.num}
+              key={`blank-${block.num}`}
+              aria-hidden="true"
+            />
+          );
         return block.kind === "scan" ? (
           <React.Fragment key={`scan-${block.data.num}`}>
             {renderScan(block.data)}
