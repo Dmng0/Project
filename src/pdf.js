@@ -3,20 +3,37 @@ import worker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 export { pdfjs };
 
+import { collectFormat, formatTextItems } from "./pdf-format";
 import { novelLines } from "./novel-text";
 import { pdfLines, marginPageNumber, itemRectangle } from "./pdf-model";
 export { safeLink, viewportRectangle } from "./pdf-model";
 export async function extractPage(doc, num) {
   const p = await doc.getPage(num),
     viewport = p.getViewport({ scale: 1 });
-  const [text, annotations] = await Promise.all([
+  const [text, annotations, operators] = await Promise.all([
     p.getTextContent(),
     p.getAnnotations({ intent: "display" }),
+    p.getOperatorList().catch(() => null),
   ]);
-  const lines = pdfLines(text.items, annotations, p.view[3] - p.view[1]);
+  const getFont = (id) => {
+    try {
+      return p.commonObjs.get(id) || {};
+    } catch {
+      return {};
+    }
+  };
+  const painting = operators
+    ? collectFormat(operators, pdfjs.OPS, getFont)
+    : { glyphs: [], rules: [] };
+  const styledItems = formatTextItems(
+    text.items,
+    painting,
+    getFont,
+    annotations,
+  );
+  const lines = pdfLines(styledItems, annotations, p.view[3] - p.view[1]);
   let hasArtwork;
   if (!novelLines(lines).length) {
-    const operators = await p.getOperatorList();
     const paints = new Set(
       [
         pdfjs.OPS.constructPath,
@@ -33,9 +50,11 @@ export async function extractPage(doc, num) {
         pdfjs.OPS.shadingFill,
       ].filter(Number.isInteger),
     );
-    hasArtwork = operators.fnArray.some((op) => paints.has(op));
+    hasArtwork = operators
+      ? operators.fnArray.some((op) => paints.has(op))
+      : true;
   }
-  return {
+  const data = {
     hasArtwork,
     num,
     text,
@@ -54,6 +73,10 @@ export async function extractPage(doc, num) {
       .filter((i) => marginPageNumber(i, p.view[3] - p.view[1]))
       .map((i) => itemRectangle(i, viewport)),
   };
+  // Release cached painting operations/images after extracting their formatting.
+  // PDF.js can load them again when the user requests the original page canvas.
+  p.cleanup();
+  return data;
 }
 export async function destinationPage(doc, dest) {
   const d = typeof dest === "string" ? await doc.getDestination(dest) : dest;

@@ -185,6 +185,7 @@ export function buildFlow(pages) {
           const piece = {
             text,
             link: part.link,
+            format: part.format,
             page: data.num,
             sourceStart: part.sourceStart + left,
             sourceEnd: part.sourceStart + right,

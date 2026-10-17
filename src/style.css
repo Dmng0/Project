@@ -1633,7 +1633,7 @@ body,
   text-align: left;
   text-decoration: underline;
   text-underline-offset: 4px;
-  color: #6c8460 !important;
+  color: #6c8460;
   vertical-align: baseline;
 }
 .prose a {
@@ -2144,3 +2144,9 @@ body,
 .note-form { scroll-margin: 8px; }
 .note-form textarea { scroll-margin-block: 12px; }
 .flow-empty-page { display: block; height: 0; margin: 0; padding: 0; }
+
+.pdf-formatted {
+  font-synthesis: weight style;
+  text-decoration-skip-ink: none;
+  text-decoration-thickness: from-font;
+}

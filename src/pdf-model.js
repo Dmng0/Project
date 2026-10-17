@@ -74,15 +74,22 @@ export function pdfLines(items, annotations, height) {
         y + h > a.rect[1] &&
         y < a.rect[3],
     );
-    parts.push({
-      rawText: item.str,
-      annotation,
-      text: item.str + (item.hasEOL ? "" : " "),
-      x,
-      y,
-      width: item.width,
-      fontSize: Math.hypot(item.transform[2], item.transform[3]) || h,
-      link: link ? { dest: link.dest, url: safeLink(link.url) } : null,
+    const formats = item.formatRuns || [
+      { start: 0, end: item.str.length, x, width: item.width },
+    ];
+    formats.forEach((run, index) => {
+      const str = item.str.slice(run.start, run.end);
+      parts.push({
+        rawText: str,
+        annotation,
+        text: str + (index === formats.length - 1 && !item.hasEOL ? " " : ""),
+        x: run.x ?? x,
+        y,
+        width: run.width ?? item.width,
+        fontSize: Math.hypot(item.transform[2], item.transform[3]) || h,
+        format: run.format,
+        link: link ? { dest: link.dest, url: safeLink(link.url) } : null,
+      });
     });
     lastY = y;
     if (item.hasEOL) {

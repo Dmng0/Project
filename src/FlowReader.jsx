@@ -1,4 +1,5 @@
 import React from "react";
+import { textFormatStyle } from "./pdf-format";
 import ProseBlocks from "./ProseBlocks";
 import { flowNoteRanges } from "./flow-text";
 export default function FlowReader({
@@ -8,6 +9,7 @@ export default function FlowReader({
   highlighted,
   follow,
   renderScan,
+  theme,
 }) {
   const fontStyle = {
     fontFamily:
@@ -46,12 +48,14 @@ export default function FlowReader({
               <ProseBlocks
                 paragraphs={block.paragraphs}
                 renderPart={(part, j) => {
+                  const style = textFormatStyle(part.format, theme);
                   const content = highlighted(part.text, part.start, ranges);
                   if (part.separator)
                     return <React.Fragment key={j}>{part.text}</React.Fragment>;
                   return (
                     <span
-                      className="flow-source"
+                      className="flow-source pdf-formatted"
+                      style={style}
                       data-page={part.page}
                       data-flow-start={part.start}
                       data-source-start={part.sourceStart}
@@ -60,7 +64,8 @@ export default function FlowReader({
                       {part.link ? (
                         part.link.dest ? (
                           <button
-                            className="text-pdf-link"
+                            className="text-pdf-link pdf-formatted"
+                            style={style}
                             onClick={(e) => {
                               e.stopPropagation();
                               follow(part.link.dest);
@@ -70,6 +75,8 @@ export default function FlowReader({
                           </button>
                         ) : (
                           <a
+                            className="pdf-formatted"
+                            style={style}
                             href={part.link.url}
                             target="_blank"
                             rel="noopener noreferrer"

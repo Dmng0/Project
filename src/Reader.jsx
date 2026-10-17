@@ -19,6 +19,7 @@ import { nextBook, scopedBooks, themes, orderedBooks } from "./library";
 import PdfPage from "./PdfPage";
 import FlowReader from "./FlowReader";
 import ProseBlocks, { pageParagraphs } from "./ProseBlocks";
+import { textFormatStyle } from "./pdf-format";
 import { novelLines, novelQuotationRanges } from "./novel-text";
 import { pageLayout } from "./page-layout";
 import { buildFlow, flowSearch, pagedFlowNoteRanges } from "./flow-text";
@@ -468,6 +469,7 @@ export default function Reader({
             <ProseBlocks
               paragraphs={pageParagraphs(pageLayout(novelLines(data.lines)))}
               renderPart={(part, j) => {
+                const style = textFormatStyle(part.format, theme);
                 const content = highlighted(
                   part.text,
                   part.sourceStart,
@@ -477,7 +479,8 @@ export default function Reader({
                   part.link.dest ? (
                     <button
                       key={j}
-                      className="text-pdf-link"
+                      className="text-pdf-link pdf-formatted"
+                      style={style}
                       onClick={(e) => {
                         e.stopPropagation();
                         follow(part.link.dest);
@@ -488,6 +491,8 @@ export default function Reader({
                   ) : (
                     <a
                       key={j}
+                      className="pdf-formatted"
+                      style={style}
                       href={part.link.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -498,7 +503,8 @@ export default function Reader({
                   )
                 ) : (
                   <span
-                    className="page-source"
+                    className="page-source pdf-formatted"
+                    style={style}
                     data-source-start={part.sourceStart}
                     key={j}
                   >
@@ -643,6 +649,7 @@ export default function Reader({
               blocks={flow}
               notes={notes}
               settings={s}
+              theme={theme}
               highlighted={highlighted}
               follow={follow}
               renderScan={content}
